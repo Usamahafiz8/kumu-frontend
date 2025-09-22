@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { API_ENDPOINTS } from '@/config/api';
 
 interface PromoCode {
   id: string;
@@ -46,7 +47,7 @@ export default function InfluencersPage() {
   const fetchInfluencerStats = async () => {
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch('http://localhost:3005/promo-codes', {
+      const response = await fetch(API_ENDPOINTS.PROMO_CODES, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },

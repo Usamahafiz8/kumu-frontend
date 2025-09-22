@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Eye, EyeOff, User, Lock } from 'lucide-react';
+import { API_ENDPOINTS } from '@/config/api';
 
 export default function InfluencerLogin() {
   const [formData, setFormData] = useState({
@@ -19,7 +20,7 @@ export default function InfluencerLogin() {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:3005/influencer/login', {
+      const response = await fetch(API_ENDPOINTS.INFLUENCER_LOGIN, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -35,7 +36,7 @@ export default function InfluencerLogin() {
         const errorData = await response.json();
         setError(errorData.message || 'Login failed');
       }
-    } catch (err) {
+    } catch {
       setError('Network error. Please try again.');
     } finally {
       setLoading(false);
@@ -156,7 +157,7 @@ export default function InfluencerLogin() {
 
           <div className="text-center">
             <p className="text-sm text-gray-600">
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <a href="/admin/register-influencer" className="font-medium text-purple-600 hover:text-purple-500">
                 Contact admin for access
               </a>

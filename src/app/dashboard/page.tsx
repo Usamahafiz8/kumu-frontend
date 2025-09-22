@@ -1,12 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { API_ENDPOINTS } from '@/config/api';
 import { 
   Users, 
-  CreditCard, 
   Tag, 
   TrendingUp, 
-  DollarSign, 
   Activity,
   Eye,
   UserCheck,
@@ -18,7 +17,6 @@ import {
   Plus,
   Edit,
   Trash2,
-  MoreHorizontal,
   RefreshCw,
   Banknote,
   CheckCircle,
@@ -278,13 +276,13 @@ export default function AdminDashboard() {
   const fetchAllData = async (token: string) => {
     try {
       const [usersRes, promoCodesRes, withdrawalsRes] = await Promise.all([
-        fetch('http://localhost:3005/admin/users', {
+        fetch(API_ENDPOINTS.ADMIN_USERS, {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
-        fetch('http://localhost:3005/promo-codes', {
+        fetch(API_ENDPOINTS.PROMO_CODES, {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
-        fetch('http://localhost:3005/admin/withdrawals', {
+        fetch(API_ENDPOINTS.ADMIN_WITHDRAWALS, {
           headers: { 'Authorization': `Bearer ${token}` }
         })
       ]);
@@ -307,7 +305,7 @@ export default function AdminDashboard() {
     e.preventDefault();
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch('http://localhost:3005/promo-codes', {
+      const response = await fetch(API_ENDPOINTS.PROMO_CODES, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -344,7 +342,7 @@ export default function AdminDashboard() {
 
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch(`http://localhost:3005/promo-codes/${id}`, {
+      const response = await fetch(`${API_ENDPOINTS.PROMO_CODES}/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -364,7 +362,7 @@ export default function AdminDashboard() {
 
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch(`http://localhost:3005/admin/withdrawals/${id}/approve`, {
+      const response = await fetch(`${API_ENDPOINTS.ADMIN_WITHDRAWALS}/${id}/approve`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -390,7 +388,7 @@ export default function AdminDashboard() {
 
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch(`http://localhost:3005/admin/withdrawals/${id}/reject`, {
+      const response = await fetch(`${API_ENDPOINTS.ADMIN_WITHDRAWALS}/${id}/reject`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -420,7 +418,7 @@ export default function AdminDashboard() {
 
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch(`http://localhost:3005/admin/withdrawals/${id}/process`, {
+      const response = await fetch(`${API_ENDPOINTS.ADMIN_WITHDRAWALS}/${id}/process`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });

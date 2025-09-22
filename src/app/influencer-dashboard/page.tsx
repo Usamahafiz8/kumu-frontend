@@ -1,17 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { API_ENDPOINTS } from '@/config/api';
 import { 
   DollarSign, 
   TrendingUp, 
   CreditCard, 
-  Download, 
-  Plus,
-  Eye,
   Clock,
   CheckCircle,
   XCircle,
-  AlertCircle,
   RefreshCw,
   LogOut,
   User,
@@ -89,7 +86,7 @@ export default function InfluencerDashboard() {
   const fetchDashboardData = async (token: string) => {
     try {
       // Fetch influencer profile
-      const profileRes = await fetch('http://localhost:3005/influencer/profile', {
+      const profileRes = await fetch(API_ENDPOINTS.INFLUENCER_PROFILE, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
@@ -107,7 +104,7 @@ export default function InfluencerDashboard() {
       }
 
       // Fetch commissions
-      const commissionsRes = await fetch('http://localhost:3005/influencer/commissions', {
+      const commissionsRes = await fetch(API_ENDPOINTS.INFLUENCER_COMMISSIONS, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
@@ -117,7 +114,7 @@ export default function InfluencerDashboard() {
       }
 
       // Fetch withdrawal requests
-      const withdrawalsRes = await fetch('http://localhost:3005/influencer/withdrawals', {
+      const withdrawalsRes = await fetch(API_ENDPOINTS.INFLUENCER_WITHDRAWALS, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
@@ -136,7 +133,7 @@ export default function InfluencerDashboard() {
     e.preventDefault();
     try {
       const token = localStorage.getItem('influencerToken');
-      const response = await fetch('http://localhost:3005/influencer/withdrawals', {
+      const response = await fetch(API_ENDPOINTS.INFLUENCER_WITHDRAWALS, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -170,7 +167,7 @@ export default function InfluencerDashboard() {
     e.preventDefault();
     try {
       const token = localStorage.getItem('influencerToken');
-      const response = await fetch('http://localhost:3005/influencer/profile', {
+      const response = await fetch(API_ENDPOINTS.INFLUENCER_PROFILE, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -282,7 +279,7 @@ export default function InfluencerDashboard() {
         {/* Welcome Section */}
         <div className="mb-8">
           <h2 className="text-3xl font-bold text-gray-900">Welcome back, {profile?.name || 'Influencer'}!</h2>
-          <p className="text-gray-600">Here's your commission overview and earnings summary</p>
+          <p className="text-gray-600">Here&apos;s your commission overview and earnings summary</p>
         </div>
 
         {/* Stats Cards */}

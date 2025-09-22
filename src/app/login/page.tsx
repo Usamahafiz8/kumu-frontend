@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { API_ENDPOINTS } from '@/config/api';
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({
@@ -25,7 +26,7 @@ export default function LoginPage() {
 
     try {
       // Call the backend admin login API
-      const response = await fetch('http://localhost:3005/admin/login', {
+      const response = await fetch(API_ENDPOINTS.ADMIN_LOGIN, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
