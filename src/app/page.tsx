@@ -56,8 +56,12 @@ export default function Home() {
               </div>
             </div>
             <div className="relative">
-              <div className="bg-gray-200 h-96 rounded-2xl flex items-center justify-center">
-                <span className="text-gray-500 text-lg">Phone Mockup</span>
+              <div className="flex justify-center">
+                <img 
+                  src="https://static.wixstatic.com/media/a86b4b_49f627def69246518a472ea1d1b6b67a~mv2.png/v1/fill/w_376,h_754,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/batting.png"
+                  alt="Kumu App Phone Mockup - Batting Training"
+                  className="w-auto h-96 object-contain drop-shadow-2xl"
+                />
               </div>
             </div>
           </div>
