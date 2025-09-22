@@ -1,9 +1,6 @@
 // DRY Environment Configuration
-const getEnvVar = (key: string, fallback?: string) => {
+const getEnvVar = (key: string, fallback: string) => {
   const value = process.env[key];
-  if (!value && process.env.NODE_ENV === 'production') {
-    throw new Error(`Missing required environment variable: ${key}`);
-  }
   return value || fallback;
 };
 
