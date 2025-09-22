@@ -3,16 +3,14 @@ frontend:
   phases:
     preBuild:
       commands:
-        - echo "Starting preBuild phase..."
+        - echo "Installing dependencies..."
         - npm ci --cache .npm --prefer-offline
-        - echo "PreBuild phase completed"
+        - echo "Dependencies installed successfully"
     build:
       commands:
-        - echo "Starting build phase..."
-        - echo "Node version: $(node --version)"
-        - echo "NPM version: $(npm --version)"
-        - timeout 300 npm run build || (echo "Build failed or timed out" && exit 1)
-        - echo "Build phase completed"
+        - echo "Starting build process..."
+        - npm run build
+        - echo "Build completed successfully"
         - ls -la .next
   artifacts:
     baseDirectory: .next
