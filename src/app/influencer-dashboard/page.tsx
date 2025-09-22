@@ -52,10 +52,25 @@ interface InfluencerProfile {
   accountHolderName?: string;
 }
 
+interface PromoCode {
+  id: string;
+  code: string;
+  name: string;
+  type: 'percentage' | 'fixed_amount';
+  value: number;
+  commissionPercentage?: number;
+  totalCommissions?: number;
+  usedCount?: number;
+  maxUses?: number;
+  status: string;
+  createdAt: string;
+}
+
 export default function InfluencerDashboard() {
   const [profile, setProfile] = useState<InfluencerProfile | null>(null);
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [withdrawalRequests, setWithdrawalRequests] = useState<WithdrawalRequest[]>([]);
+  const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
   const [loading, setLoading] = useState(true);
   const [showWithdrawalModal, setShowWithdrawalModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -63,7 +78,9 @@ export default function InfluencerDashboard() {
     amount: '',
     bankAccount: '',
     bankName: '',
-    accountHolderName: ''
+    accountHolderName: '',
+    routingNumber: '',
+    accountType: 'checking'
   });
   const [profileForm, setProfileForm] = useState({
     name: '',
@@ -122,6 +139,20 @@ export default function InfluencerDashboard() {
         const withdrawalsData = await withdrawalsRes.json();
         setWithdrawalRequests(withdrawalsData);
       }
+
+      // Fetch promo codes
+      const promoCodesRes = await fetch(API_ENDPOINTS.INFLUENCER_PROMO_CODES, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (promoCodesRes.ok) {
+        const promoCodesData = await promoCodesRes.json();
+        console.log('Fetched promo codes:', promoCodesData);
+        setPromoCodes(Array.isArray(promoCodesData) ? promoCodesData : []);
+      } else {
+        console.error('Failed to fetch promo codes:', promoCodesRes.status);
+        setPromoCodes([]);
+      }
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
     } finally {
@@ -129,8 +160,24 @@ export default function InfluencerDashboard() {
     }
   };
 
+  const validateWithdrawalForm = (): boolean => {
+    const isValidRouting = validateRoutingNumber(withdrawalForm.routingNumber);
+    const isValidAccount = validateAccountNumber(withdrawalForm.bankAccount);
+    const isValidBank = validateBankName(withdrawalForm.bankName);
+    const isValidName = validateAccountHolderName(withdrawalForm.accountHolderName);
+    const isValidAmount = parseFloat(withdrawalForm.amount) > 0 && parseFloat(withdrawalForm.amount) <= (profile?.pendingEarnings || 0);
+    
+    return isValidRouting && isValidAccount && isValidBank && isValidName && isValidAmount;
+  };
+
   const requestWithdrawal = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateWithdrawalForm()) {
+      alert('Please fix the validation errors before submitting.');
+      return;
+    }
+    
     try {
       const token = localStorage.getItem('influencerToken');
       const response = await fetch(API_ENDPOINTS.INFLUENCER_WITHDRAWALS, {
@@ -150,7 +197,9 @@ export default function InfluencerDashboard() {
           amount: '',
           bankAccount: '',
           bankName: '',
-          accountHolderName: ''
+          accountHolderName: '',
+          routingNumber: '',
+          accountType: 'checking'
         });
         alert('✅ Withdrawal request submitted successfully!');
       } else {
@@ -196,7 +245,41 @@ export default function InfluencerDashboard() {
     window.location.href = '/login';
   };
 
-  const formatCurrency = (amount: number): string => `$${amount.toFixed(2)}`;
+  const formatCurrency = (amount: number | null | undefined): string => {
+    if (amount === null || amount === undefined || isNaN(amount)) {
+      return '$0.00';
+    }
+    return `$${Number(amount).toFixed(2)}`;
+  };
+
+  // Bank account validation functions
+  const validateRoutingNumber = (routing: string): boolean => {
+    // US routing numbers are 9 digits
+    const routingRegex = /^\d{9}$/;
+    return routingRegex.test(routing);
+  };
+
+  const validateAccountNumber = (account: string): boolean => {
+    // Account numbers are typically 4-17 digits
+    const accountRegex = /^\d{4,17}$/;
+    return accountRegex.test(account);
+  };
+
+  const validateBankName = (bankName: string): boolean => {
+    // Check against common US bank names
+    const validBanks = [
+      'chase', 'bank of america', 'wells fargo', 'citibank', 'us bank',
+      'pnc', 'capital one', 'td bank', 'regions', 'suntrust',
+      'huntington', 'keybank', 'comerica', 'm&t bank', 'bb&t'
+    ];
+    return validBanks.some(bank => bankName.toLowerCase().includes(bank));
+  };
+
+  const validateAccountHolderName = (name: string): boolean => {
+    // Name should be at least 2 words (first and last name)
+    const nameParts = name.trim().split(' ');
+    return nameParts.length >= 2 && nameParts.every(part => part.length >= 2);
+  };
   const formatDate = (dateString: string): string => new Date(dateString).toLocaleDateString();
 
   const getStatusBadge = (status: string, type: 'commission' | 'withdrawal') => {
@@ -406,6 +489,74 @@ export default function InfluencerDashboard() {
           </div>
         </div>
 
+        {/* My Promo Codes Table */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 mb-8">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900">My Promo Codes</h3>
+            <p className="text-sm text-gray-600">Track your promo codes and commission earnings</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Discount</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Commission</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Usage</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Earnings</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {(promoCodes || []).map((promoCode) => (
+                  <tr key={promoCode.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                        {promoCode.code}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {promoCode.name}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {promoCode.type === 'percentage' 
+                        ? `${promoCode.value || 0}%` 
+                        : formatCurrency(promoCode.value)
+                      }
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {promoCode.commissionPercentage || 0}%
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {promoCode.usedCount || 0} / {promoCode.maxUses || '∞'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">
+                      {formatCurrency(promoCode.totalCommissions)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        promoCode.status === 'active' ? 'bg-green-100 text-green-800' :
+                        promoCode.status === 'inactive' ? 'bg-gray-100 text-gray-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {promoCode.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+                {(promoCodes || []).length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                      No promo codes assigned to you yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         {/* Withdrawal Requests Table */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200">
           <div className="px-6 py-4 border-b border-gray-200">
@@ -489,15 +640,40 @@ export default function InfluencerDashboard() {
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Bank Account *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Routing Number *</label>
+                  <input
+                    type="text"
+                    value={withdrawalForm.routingNumber}
+                    onChange={(e) => setWithdrawalForm({...withdrawalForm, routingNumber: e.target.value})}
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                      withdrawalForm.routingNumber && !validateRoutingNumber(withdrawalForm.routingNumber) 
+                        ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="9-digit routing number"
+                    maxLength={9}
+                    required
+                  />
+                  {withdrawalForm.routingNumber && !validateRoutingNumber(withdrawalForm.routingNumber) && (
+                    <p className="text-xs text-red-500 mt-1">Invalid routing number (must be 9 digits)</p>
+                  )}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Account Number *</label>
                   <input
                     type="text"
                     value={withdrawalForm.bankAccount}
                     onChange={(e) => setWithdrawalForm({...withdrawalForm, bankAccount: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Enter bank account number"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                      withdrawalForm.bankAccount && !validateAccountNumber(withdrawalForm.bankAccount) 
+                        ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="4-17 digit account number"
                     required
                   />
+                  {withdrawalForm.bankAccount && !validateAccountNumber(withdrawalForm.bankAccount) && (
+                    <p className="text-xs text-red-500 mt-1">Invalid account number (must be 4-17 digits)</p>
+                  )}
                 </div>
                 
                 <div>
@@ -506,10 +682,29 @@ export default function InfluencerDashboard() {
                     type="text"
                     value={withdrawalForm.bankName}
                     onChange={(e) => setWithdrawalForm({...withdrawalForm, bankName: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Enter bank name"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                      withdrawalForm.bankName && !validateBankName(withdrawalForm.bankName) 
+                        ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="e.g., Chase, Bank of America, Wells Fargo"
                     required
                   />
+                  {withdrawalForm.bankName && !validateBankName(withdrawalForm.bankName) && (
+                    <p className="text-xs text-red-500 mt-1">Please enter a valid US bank name</p>
+                  )}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Account Type *</label>
+                  <select
+                    value={withdrawalForm.accountType}
+                    onChange={(e) => setWithdrawalForm({...withdrawalForm, accountType: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  >
+                    <option value="checking">Checking</option>
+                    <option value="savings">Savings</option>
+                  </select>
                 </div>
                 
                 <div>
@@ -518,10 +713,34 @@ export default function InfluencerDashboard() {
                     type="text"
                     value={withdrawalForm.accountHolderName}
                     onChange={(e) => setWithdrawalForm({...withdrawalForm, accountHolderName: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Enter account holder name"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                      withdrawalForm.accountHolderName && !validateAccountHolderName(withdrawalForm.accountHolderName) 
+                        ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="First and Last Name (as it appears on bank account)"
                     required
                   />
+                  {withdrawalForm.accountHolderName && !validateAccountHolderName(withdrawalForm.accountHolderName) && (
+                    <p className="text-xs text-red-500 mt-1">Please enter your full name (first and last name)</p>
+                  )}
+                </div>
+                
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-yellow-800">Security Notice</h3>
+                      <div className="mt-2 text-sm text-yellow-700">
+                        <p>• Bank information will be verified before processing</p>
+                        <p>• Withdrawals may take 3-5 business days to process</p>
+                        <p>• You will receive email confirmation once processed</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
                 
                 <div className="flex justify-end space-x-3 pt-4">

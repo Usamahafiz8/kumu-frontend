@@ -73,6 +73,12 @@ export default function InfluencerLogin() {
             >
               Influencer Login
             </Link>
+            <Link 
+              href="/influencer-register" 
+              className="flex-1 text-center py-2 px-4 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200"
+            >
+              Register
+            </Link>
           </div>
         </div>
         
@@ -158,9 +164,9 @@ export default function InfluencerLogin() {
           <div className="text-center">
             <p className="text-sm text-gray-600">
               Don&apos;t have an account?{' '}
-              <a href="/admin/register-influencer" className="font-medium text-purple-600 hover:text-purple-500">
-                Contact admin for access
-              </a>
+              <Link href="/influencer-register" className="font-medium text-purple-600 hover:text-purple-500">
+                Register here
+              </Link>
             </p>
           </div>
         </form>

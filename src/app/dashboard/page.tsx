@@ -66,12 +66,25 @@ interface WithdrawalRequest {
   stripeTransferId?: string;
 }
 
+interface PendingInfluencer {
+  id: string;
+  name: string;
+  email: string;
+  socialHandle?: string;
+  bankAccount?: string;
+  bankName?: string;
+  accountHolderName?: string;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
+}
+
 interface Stats {
   totalUsers: number;
   totalPromoCodes: number;
   activePromoCodes: number;
   totalPromoUses: number;
   totalInfluencers: number;
+  pendingInfluencers: number;
   pendingWithdrawals: number;
   totalWithdrawals: number;
   totalWithdrawalAmount: number;
@@ -241,10 +254,13 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState<User[]>([]);
   const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
   const [withdrawalRequests, setWithdrawalRequests] = useState<WithdrawalRequest[]>([]);
+  const [pendingInfluencers, setPendingInfluencers] = useState<PendingInfluencer[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreatePromo, setShowCreatePromo] = useState(false);
   const [showWithdrawalModal, setShowWithdrawalModal] = useState(false);
   const [selectedWithdrawal, setSelectedWithdrawal] = useState<WithdrawalRequest | null>(null);
+  const [showInfluencerModal, setShowInfluencerModal] = useState(false);
+  const [selectedInfluencer, setSelectedInfluencer] = useState<PendingInfluencer | null>(null);
   // Advanced features temporarily disabled
   const [promoForm, setPromoForm] = useState({
     code: '',
@@ -253,6 +269,8 @@ export default function AdminDashboard() {
     value: 0,
     maxUses: 100,
     influencerName: '',
+    influencerId: '',
+    commissionPercentage: 10, // Default 10% commission
   });
 
   useEffect(() => {
@@ -275,7 +293,7 @@ export default function AdminDashboard() {
 
   const fetchAllData = async (token: string) => {
     try {
-      const [usersRes, promoCodesRes, withdrawalsRes] = await Promise.all([
+      const [usersRes, promoCodesRes, withdrawalsRes, pendingInfluencersRes] = await Promise.all([
         fetch(API_ENDPOINTS.ADMIN_USERS, {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
@@ -284,22 +302,42 @@ export default function AdminDashboard() {
         }),
         fetch(API_ENDPOINTS.ADMIN_WITHDRAWALS, {
           headers: { 'Authorization': `Bearer ${token}` }
-        }).catch(() => ({ json: () => Promise.resolve([]) }))
+        }).catch(() => ({ json: () => Promise.resolve([]) })),
+        fetch(`${API_ENDPOINTS.ADMIN_INFLUENCERS || 'http://localhost:3005/admin/influencers'}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }).catch((error) => {
+          console.error('Error fetching influencers:', error);
+          return { json: () => Promise.resolve([]) };
+        })
       ]);
 
       const usersData = await usersRes.json();
       const promoCodesData = await promoCodesRes.json();
       const withdrawalsData = await withdrawalsRes.json();
+      const pendingInfluencersData = await pendingInfluencersRes.json();
 
+      console.log('Fetched data:', {
+        users: usersData,
+        promoCodes: promoCodesData,
+        withdrawals: withdrawalsData,
+        pendingInfluencers: pendingInfluencersData
+      });
+      
+      // Debug influencers specifically
+      console.log('All influencers:', pendingInfluencersData);
+      console.log('Approved influencers:', pendingInfluencersData?.filter((inf: any) => inf.status === 'approved'));
+      
       setUsers(Array.isArray(usersData) ? usersData : []);
       setPromoCodes(Array.isArray(promoCodesData) ? promoCodesData : []);
       setWithdrawalRequests(Array.isArray(withdrawalsData) ? withdrawalsData : []);
+      setPendingInfluencers(Array.isArray(pendingInfluencersData) ? pendingInfluencersData : []);
     } catch (err) {
       console.error('Error fetching data:', err);
       // Set fallback empty arrays on error
       setUsers([]);
       setPromoCodes([]);
       setWithdrawalRequests([]);
+      setPendingInfluencers([]);
     } finally {
       setLoading(false);
     }
@@ -329,6 +367,8 @@ export default function AdminDashboard() {
           value: 0,
           maxUses: 100,
           influencerName: '',
+          influencerId: '',
+          commissionPercentage: 10,
         });
         alert('✅ Promo code created successfully!');
       } else {
@@ -443,6 +483,60 @@ export default function AdminDashboard() {
     }
   };
 
+  const approveInfluencer = async (id: string) => {
+    if (!confirm('Are you sure you want to approve this influencer?')) return;
+
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${API_ENDPOINTS.ADMIN_INFLUENCERS || 'http://localhost:3005/admin/influencers'}/${id}/status`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status: 'approved' })
+      });
+
+      if (response.ok) {
+        setPendingInfluencers(pendingInfluencers.filter(inf => inf.id !== id));
+        alert('✅ Influencer approved successfully!');
+      } else {
+        const error = await response.json();
+        alert(`Error: ${error.message}`);
+      }
+    } catch (err) {
+      console.error('Error approving influencer:', err);
+      alert('Error approving influencer');
+    }
+  };
+
+  const rejectInfluencer = async (id: string) => {
+    if (!confirm('Are you sure you want to reject this influencer?')) return;
+
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`${API_ENDPOINTS.ADMIN_INFLUENCERS || 'http://localhost:3005/admin/influencers'}/${id}/status`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status: 'rejected' })
+      });
+
+      if (response.ok) {
+        setPendingInfluencers(pendingInfluencers.filter(inf => inf.id !== id));
+        alert('✅ Influencer rejected successfully!');
+      } else {
+        const error = await response.json();
+        alert(`Error: ${error.message}`);
+      }
+    } catch (err) {
+      console.error('Error rejecting influencer:', err);
+      alert('Error rejecting influencer');
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem('adminToken');
     window.location.href = '/login';
@@ -471,12 +565,14 @@ export default function AdminDashboard() {
 
   // Calculate comprehensive stats
   const safeWithdrawalRequests = Array.isArray(withdrawalRequests) ? withdrawalRequests : [];
+  const safePendingInfluencers = Array.isArray(pendingInfluencers) ? pendingInfluencers : [];
   const stats: Stats = {
     totalUsers: users.length,
     totalPromoCodes: promoCodes.length,
     activePromoCodes: promoCodes.filter(code => code.status === 'active').length,
     totalPromoUses: promoCodes.reduce((sum, code) => sum + code.usedCount, 0),
     totalInfluencers: new Set(promoCodes.filter(code => code.influencerName).map(code => code.influencerName)).size,
+    pendingInfluencers: safePendingInfluencers.length,
     pendingWithdrawals: safeWithdrawalRequests.filter(req => req.status === 'pending').length,
     totalWithdrawals: safeWithdrawalRequests.length,
     totalWithdrawalAmount: safeWithdrawalRequests.reduce((sum, req) => sum + req.amount, 0),
@@ -500,6 +596,7 @@ export default function AdminDashboard() {
     { id: 'users', label: `Users (${stats.totalUsers})`, icon: Users },
     { id: 'promocodes', label: `Promo Codes (${stats.totalPromoCodes})`, icon: Tag },
     { id: 'influencers', label: `Influencers (${stats.totalInfluencers})`, icon: UserCheck },
+    { id: 'influencer-approvals', label: `Pending Approvals (${stats.pendingInfluencers})`, icon: UserCheck },
     { id: 'withdrawals', label: `Withdrawals (${stats.pendingWithdrawals})`, icon: Banknote },
   ];
 
@@ -619,22 +716,16 @@ export default function AdminDashboard() {
                 <div className="p-6">
                   <div className="space-y-4">
                     {users.slice(0, 5).map((user) => (
-                      <div key={user.id} className="flex items-center justify-between">
-                        <div className="flex items-center">
-                          <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-                            <span className="text-white font-semibold text-sm">
-                              {getInitials(user.email)}
-                            </span>
-                          </div>
-                          <div className="ml-3">
-                            <p className="text-sm font-medium text-gray-900">{user.email}</p>
-                            <p className="text-xs text-gray-500">{formatDate(user.createdAt)}</p>
-                          </div>
+                      <div key={user.id} className="flex items-center">
+                        <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                          <span className="text-white font-semibold text-sm">
+                            {getInitials(user.email)}
+                          </span>
                         </div>
-                        <StatusBadge 
-                          status={user.isEmailVerified ? 'Verified' : 'Pending'} 
-                          type="user" 
-                        />
+                        <div className="ml-3">
+                          <p className="text-sm font-medium text-gray-900">{user.email}</p>
+                          <p className="text-xs text-gray-500">{formatDate(user.createdAt)}</p>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -699,7 +790,7 @@ export default function AdminDashboard() {
             </div>
 
             <DataTable
-              headers={['User', 'Role', 'Status', 'Joined', 'Last Login', 'Actions']}
+              headers={['User', 'Role', 'Joined', 'Actions']}
               data={filteredUsers}
               loading={loading}
               renderRow={(user) => (
@@ -717,14 +808,8 @@ export default function AdminDashboard() {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{user.role}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <StatusBadge status={user.isEmailVerified ? 'Verified' : 'Pending'} type="user" />
-                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {formatDate(user.createdAt)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {user.lastLoginAt ? formatDateTime(user.lastLoginAt) : 'Never'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex items-center space-x-2">
@@ -886,6 +971,140 @@ export default function AdminDashboard() {
                   </tr>
                 );
               }}
+            />
+          </div>
+        )}
+
+        {/* Influencer Approvals Tab */}
+        {activeTab === 'influencer-approvals' && (
+          <div>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">Influencer Approvals</h2>
+              <div className="flex items-center space-x-3">
+                <button className="flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                  <Download className="w-4 h-4 mr-2" />
+                  Export
+                </button>
+              </div>
+            </div>
+
+            {/* Approval Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                <div className="flex items-center">
+                  <div className="p-3 bg-yellow-100 rounded-lg">
+                    <Clock className="w-6 h-6 text-yellow-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Pending Approval</p>
+                    <p className="text-2xl font-bold text-gray-900">{stats.pendingInfluencers}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                <div className="flex items-center">
+                  <div className="p-3 bg-green-100 rounded-lg">
+                    <CheckCircle className="w-6 h-6 text-green-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Approved Today</p>
+                    <p className="text-2xl font-bold text-gray-900">0</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                <div className="flex items-center">
+                  <div className="p-3 bg-red-100 rounded-lg">
+                    <XCircle className="w-6 h-6 text-red-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Rejected Today</p>
+                    <p className="text-2xl font-bold text-gray-900">0</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <SearchFilter
+              searchValue={searchTerm}
+              onSearchChange={setSearchTerm}
+              placeholder="Search influencers by name or email..."
+              showFilters={true}
+            />
+
+            <DataTable
+              headers={['Influencer', 'Social Handle', 'Banking Info', 'Status', 'Applied', 'Actions']}
+              data={safePendingInfluencers.filter(inf => 
+                inf.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                inf.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (inf.socialHandle && inf.socialHandle.toLowerCase().includes(searchTerm.toLowerCase()))
+              )}
+              loading={loading}
+              renderRow={(influencer) => (
+                <tr key={influencer.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
+                        <span className="text-white font-semibold text-sm">
+                          {getInitials(influencer.name)}
+                        </span>
+                      </div>
+                      <div className="ml-4">
+                        <div className="text-sm font-medium text-gray-900">{influencer.name}</div>
+                        <div className="text-sm text-gray-500">{influencer.email}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {influencer.socialHandle || '-'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <div>
+                      <div className="font-medium">{influencer.bankName || 'Not provided'}</div>
+                      <div className="text-gray-500">{influencer.bankAccount || '-'}</div>
+                      <div className="text-gray-500">{influencer.accountHolderName || '-'}</div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                      {influencer.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {formatDate(influencer.createdAt)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <div className="flex items-center space-x-2">
+                      <button 
+                        onClick={() => {
+                          setSelectedInfluencer(influencer);
+                          setShowInfluencerModal(true);
+                        }}
+                        className="text-blue-600 hover:text-blue-900"
+                        title="View Details"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button 
+                        onClick={() => approveInfluencer(influencer.id)}
+                        className="text-green-600 hover:text-green-900"
+                        title="Approve"
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                      </button>
+                      <button 
+                        onClick={() => rejectInfluencer(influencer.id)}
+                        className="text-red-600 hover:text-red-900"
+                        title="Reject"
+                      >
+                        <XCircle className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              )}
             />
           </div>
         )}
@@ -1144,14 +1363,44 @@ export default function AdminDashboard() {
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Influencer Name</label>
-                  <input
-                    type="text"
-                    value={promoForm.influencerName}
-                    onChange={(e) => setPromoForm({...promoForm, influencerName: e.target.value})}
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Select Influencer *</label>
+                  <select
+                    value={promoForm.influencerId}
+                    onChange={(e) => {
+                      const selectedInfluencer = pendingInfluencers.find(inf => inf.id === e.target.value);
+                      setPromoForm({
+                        ...promoForm, 
+                        influencerId: e.target.value,
+                        influencerName: selectedInfluencer?.name || ''
+                      });
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="John Doe"
+                    required
+                  >
+                    <option value="">Select an influencer</option>
+                    {pendingInfluencers.filter(inf => inf.status === 'approved').map(influencer => (
+                      <option key={influencer.id} value={influencer.id}>
+                        {influencer.name} ({influencer.email})
+                      </option>
+                    ))}
+                    {pendingInfluencers.length === 0 && (
+                      <option disabled>No approved influencers found</option>
+                    )}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Commission Percentage (%)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={promoForm.commissionPercentage}
+                    onChange={(e) => setPromoForm({...promoForm, commissionPercentage: parseFloat(e.target.value)})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="10"
                   />
+                  <p className="text-xs text-gray-500 mt-1">Percentage of discount amount that goes to influencer</p>
                 </div>
                 
                 <div className="flex justify-end space-x-3 pt-4">
@@ -1317,6 +1566,114 @@ export default function AdminDashboard() {
                       Process Payment
                     </button>
                   )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Influencer Details Modal */}
+        {showInfluencerModal && selectedInfluencer && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-gray-900">Influencer Details</h3>
+                  <button
+                    onClick={() => setShowInfluencerModal(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <XCircle className="w-6 h-6" />
+                  </button>
+                </div>
+              </div>
+              
+              <div className="p-6 space-y-6">
+                {/* Personal Information */}
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h4 className="text-sm font-medium text-gray-900 mb-2">Personal Information</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-600">Name</p>
+                      <p className="text-sm font-medium text-gray-900">{selectedInfluencer.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Email</p>
+                      <p className="text-sm font-medium text-gray-900">{selectedInfluencer.email}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Social Handle</p>
+                      <p className="text-sm font-medium text-gray-900">{selectedInfluencer.socialHandle || 'Not provided'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Status</p>
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                        {selectedInfluencer.status}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Banking Information */}
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h4 className="text-sm font-medium text-gray-900 mb-2">Banking Information</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-600">Bank Name</p>
+                      <p className="text-sm font-medium text-gray-900">{selectedInfluencer.bankName || 'Not provided'}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Account Number</p>
+                      <p className="text-sm font-medium text-gray-900">{selectedInfluencer.bankAccount || 'Not provided'}</p>
+                    </div>
+                    <div className="col-span-2">
+                      <p className="text-sm text-gray-600">Account Holder</p>
+                      <p className="text-sm font-medium text-gray-900">{selectedInfluencer.accountHolderName || 'Not provided'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Application Date */}
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h4 className="text-sm font-medium text-gray-900 mb-2">Application Details</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-600">Applied On</p>
+                      <p className="text-sm font-medium text-gray-900">{formatDate(selectedInfluencer.createdAt)}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Application ID</p>
+                      <p className="text-sm font-medium text-gray-900">{selectedInfluencer.id}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex justify-end space-x-3 pt-4 border-t">
+                  <button
+                    onClick={() => setShowInfluencerModal(false)}
+                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={() => {
+                      rejectInfluencer(selectedInfluencer.id);
+                      setShowInfluencerModal(false);
+                    }}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                  >
+                    Reject
+                  </button>
+                  <button
+                    onClick={() => {
+                      approveInfluencer(selectedInfluencer.id);
+                      setShowInfluencerModal(false);
+                    }}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  >
+                    Approve
+                  </button>
                 </div>
               </div>
             </div>
