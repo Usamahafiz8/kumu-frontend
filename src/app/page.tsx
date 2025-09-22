@@ -37,9 +37,9 @@ export default function Home() {
                 You&apos;re in control, learn at your own pace. Giving everyone, everywhere access to professional affordable coaching in the palm of your hand.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
-                <button className="bg-orange-500 text-white px-8 py-4 rounded-full text-lg font-semibold hover:bg-orange-600 transition-colors">
+                {/* <button className="bg-orange-500 text-white px-8 py-4 rounded-full text-lg font-semibold hover:bg-orange-600 transition-colors">
                   Free Trial
-                </button>
+                </button> */}
                 <button className="border-2 border-orange-500 text-orange-500 px-8 py-4 rounded-full text-lg font-semibold hover:bg-orange-500 hover:text-white transition-colors">
                   Download the coaching app
                 </button>
@@ -107,7 +107,7 @@ export default function Home() {
       </section>
 
       {/* Pricing Section */}
-      <section id="pricing" className="py-20 bg-gray-50">
+      {/* <section id="pricing" className="py-20 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-gray-900 mb-4">Simple Pricing</h2>
@@ -125,7 +125,7 @@ export default function Home() {
             </div>
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* Reviews Section */}
       <section id="reviews" className="py-20 bg-white">
