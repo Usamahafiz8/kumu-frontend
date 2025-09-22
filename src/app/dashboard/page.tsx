@@ -93,7 +93,6 @@ interface Stats {
 // Utility functions
 const formatCurrency = (amount: number): string => `$${amount.toFixed(2)}`;
 const formatDate = (dateString: string): string => new Date(dateString).toLocaleDateString();
-const formatDateTime = (dateString: string): string => new Date(dateString).toLocaleString();
 const getInitials = (text: string): string => text.charAt(0).toUpperCase();
 
 // Status badge component
@@ -325,7 +324,7 @@ export default function AdminDashboard() {
       
       // Debug influencers specifically
       console.log('All influencers:', pendingInfluencersData);
-      console.log('Approved influencers:', pendingInfluencersData?.filter((inf: any) => inf.status === 'approved'));
+      console.log('Approved influencers:', pendingInfluencersData?.filter((inf: { status: string }) => inf.status === 'approved'));
       
       setUsers(Array.isArray(usersData) ? usersData : []);
       setPromoCodes(Array.isArray(promoCodesData) ? promoCodesData : []);

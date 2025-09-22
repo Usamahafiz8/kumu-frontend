@@ -23,7 +23,7 @@ export default function DebugPage() {
               const data = await response.text();
               alert(`Response: ${response.status} - ${data}`);
             } catch (error) {
-              alert(`Error: ${error.message}`);
+              alert(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
             }
           }}
           className="bg-blue-500 text-white px-4 py-2 rounded"

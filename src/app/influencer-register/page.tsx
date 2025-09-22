@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Eye, EyeOff, User, Lock, Mail, Instagram, Twitter } from 'lucide-react';
+import { Eye, EyeOff, User, Lock, Mail, Instagram } from 'lucide-react';
 import { API_ENDPOINTS } from '@/config/api';
 
 export default function InfluencerRegister() {

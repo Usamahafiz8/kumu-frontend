@@ -57,10 +57,12 @@ export default function Home() {
             </div>
             <div className="relative">
               <div className="flex justify-center">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img 
                   src="https://static.wixstatic.com/media/a86b4b_49f627def69246518a472ea1d1b6b67a~mv2.png/v1/fill/w_376,h_754,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/batting.png"
                   alt="Kumu App Phone Mockup - Batting Training"
                   className="w-auto h-96 object-contain drop-shadow-2xl"
+                  loading="eager"
                 />
               </div>
             </div>
