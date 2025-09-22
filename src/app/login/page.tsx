@@ -70,6 +70,24 @@ export default function LoginPage() {
           </p>
         </div>
 
+        {/* Login Type Selection */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+          <div className="flex space-x-4">
+            <Link 
+              href="/login" 
+              className="flex-1 text-center py-2 px-4 bg-blue-600 text-white rounded-lg font-medium"
+            >
+              Admin Login
+            </Link>
+            <Link 
+              href="/influencer-login" 
+              className="flex-1 text-center py-2 px-4 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200"
+            >
+              Influencer Login
+            </Link>
+          </div>
+        </div>
+
         {/* Login Form */}
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="bg-white py-8 px-6 shadow-xl rounded-2xl">

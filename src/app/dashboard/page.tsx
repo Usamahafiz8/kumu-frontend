@@ -19,7 +19,11 @@ import {
   Edit,
   Trash2,
   MoreHorizontal,
-  RefreshCw
+  RefreshCw,
+  Banknote,
+  CheckCircle,
+  XCircle,
+  Clock
 } from 'lucide-react';
 // Advanced components temporarily removed for stability
 
@@ -48,12 +52,31 @@ interface PromoCode {
   expiresAt?: string;
 }
 
+interface WithdrawalRequest {
+  id: string;
+  influencerId: string;
+  influencerName: string;
+  influencerEmail: string;
+  amount: number;
+  status: 'pending' | 'approved' | 'rejected' | 'paid';
+  bankAccount: string;
+  bankName: string;
+  accountHolderName: string;
+  requestedAt: string;
+  processedAt?: string;
+  rejectionReason?: string;
+  stripeTransferId?: string;
+}
+
 interface Stats {
   totalUsers: number;
   totalPromoCodes: number;
   activePromoCodes: number;
   totalPromoUses: number;
   totalInfluencers: number;
+  pendingWithdrawals: number;
+  totalWithdrawals: number;
+  totalWithdrawalAmount: number;
 }
 
 // Utility functions
@@ -219,8 +242,11 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<User[]>([]);
   const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
+  const [withdrawalRequests, setWithdrawalRequests] = useState<WithdrawalRequest[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreatePromo, setShowCreatePromo] = useState(false);
+  const [showWithdrawalModal, setShowWithdrawalModal] = useState(false);
+  const [selectedWithdrawal, setSelectedWithdrawal] = useState<WithdrawalRequest | null>(null);
   // Advanced features temporarily disabled
   const [promoForm, setPromoForm] = useState({
     code: '',
@@ -251,20 +277,25 @@ export default function AdminDashboard() {
 
   const fetchAllData = async (token: string) => {
     try {
-      const [usersRes, promoCodesRes] = await Promise.all([
+      const [usersRes, promoCodesRes, withdrawalsRes] = await Promise.all([
         fetch('http://localhost:3005/admin/users', {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
         fetch('http://localhost:3005/promo-codes', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch('http://localhost:3005/admin/withdrawals', {
           headers: { 'Authorization': `Bearer ${token}` }
         })
       ]);
 
       const usersData = await usersRes.json();
       const promoCodesData = await promoCodesRes.json();
+      const withdrawalsData = await withdrawalsRes.json();
 
       setUsers(usersData);
       setPromoCodes(promoCodesData);
+      setWithdrawalRequests(withdrawalsData);
     } catch (err) {
       console.error('Error fetching data:', err);
     } finally {
@@ -328,6 +359,88 @@ export default function AdminDashboard() {
     }
   };
 
+  const approveWithdrawal = async (id: string) => {
+    if (!confirm('Are you sure you want to approve this withdrawal request?')) return;
+
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`http://localhost:3005/admin/withdrawals/${id}/approve`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const updatedRequest = await response.json();
+        setWithdrawalRequests(withdrawalRequests.map(req => 
+          req.id === id ? updatedRequest : req
+        ));
+        alert('✅ Withdrawal request approved!');
+      } else {
+        const error = await response.json();
+        alert(`Error: ${error.message}`);
+      }
+    } catch (err) {
+      console.error('Error approving withdrawal:', err);
+      alert('Error approving withdrawal');
+    }
+  };
+
+  const rejectWithdrawal = async (id: string, reason: string) => {
+    if (!confirm('Are you sure you want to reject this withdrawal request?')) return;
+
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`http://localhost:3005/admin/withdrawals/${id}/reject`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ reason })
+      });
+
+      if (response.ok) {
+        const updatedRequest = await response.json();
+        setWithdrawalRequests(withdrawalRequests.map(req => 
+          req.id === id ? updatedRequest : req
+        ));
+        alert('✅ Withdrawal request rejected!');
+      } else {
+        const error = await response.json();
+        alert(`Error: ${error.message}`);
+      }
+    } catch (err) {
+      console.error('Error rejecting withdrawal:', err);
+      alert('Error rejecting withdrawal');
+    }
+  };
+
+  const processWithdrawal = async (id: string) => {
+    if (!confirm('Are you sure you want to process this withdrawal payment via Stripe?')) return;
+
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`http://localhost:3005/admin/withdrawals/${id}/process`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const updatedRequest = await response.json();
+        setWithdrawalRequests(withdrawalRequests.map(req => 
+          req.id === id ? updatedRequest : req
+        ));
+        alert('✅ Withdrawal payment processed successfully!');
+      } else {
+        const error = await response.json();
+        alert(`Error: ${error.message}`);
+      }
+    } catch (err) {
+      console.error('Error processing withdrawal:', err);
+      alert('Error processing withdrawal');
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem('adminToken');
     window.location.href = '/login';
@@ -361,6 +474,9 @@ export default function AdminDashboard() {
     activePromoCodes: promoCodes.filter(code => code.status === 'active').length,
     totalPromoUses: promoCodes.reduce((sum, code) => sum + code.usedCount, 0),
     totalInfluencers: new Set(promoCodes.filter(code => code.influencerName).map(code => code.influencerName)).size,
+    pendingWithdrawals: withdrawalRequests.filter(req => req.status === 'pending').length,
+    totalWithdrawals: withdrawalRequests.length,
+    totalWithdrawalAmount: withdrawalRequests.reduce((sum, req) => sum + req.amount, 0),
   };
 
   // Filter data based on search
@@ -381,6 +497,7 @@ export default function AdminDashboard() {
     { id: 'users', label: `Users (${stats.totalUsers})`, icon: Users },
     { id: 'promocodes', label: `Promo Codes (${stats.totalPromoCodes})`, icon: Tag },
     { id: 'influencers', label: `Influencers (${stats.totalInfluencers})`, icon: UserCheck },
+    { id: 'withdrawals', label: `Withdrawals (${stats.pendingWithdrawals})`, icon: Banknote },
   ];
 
   return (
@@ -770,6 +887,178 @@ export default function AdminDashboard() {
           </div>
         )}
 
+        {/* Withdrawals Tab */}
+        {activeTab === 'withdrawals' && (
+          <div>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">Withdrawal Management</h2>
+              <div className="flex items-center space-x-3">
+                <button className="flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                  <Download className="w-4 h-4 mr-2" />
+                  Export
+                </button>
+              </div>
+            </div>
+
+            {/* Withdrawal Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                <div className="flex items-center">
+                  <div className="p-3 bg-yellow-100 rounded-lg">
+                    <Clock className="w-6 h-6 text-yellow-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Pending</p>
+                    <p className="text-2xl font-bold text-gray-900">{stats.pendingWithdrawals}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                <div className="flex items-center">
+                  <div className="p-3 bg-green-100 rounded-lg">
+                    <CheckCircle className="w-6 h-6 text-green-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Approved</p>
+                    <p className="text-2xl font-bold text-gray-900">
+                      {withdrawalRequests.filter(req => req.status === 'approved').length}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                <div className="flex items-center">
+                  <div className="p-3 bg-blue-100 rounded-lg">
+                    <Banknote className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Total Amount</p>
+                    <p className="text-2xl font-bold text-gray-900">{formatCurrency(stats.totalWithdrawalAmount)}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                <div className="flex items-center">
+                  <div className="p-3 bg-purple-100 rounded-lg">
+                    <TrendingUp className="w-6 h-6 text-purple-600" />
+                  </div>
+                  <div className="ml-4">
+                    <p className="text-sm font-medium text-gray-600">Total Requests</p>
+                    <p className="text-2xl font-bold text-gray-900">{stats.totalWithdrawals}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <SearchFilter
+              searchValue={searchTerm}
+              onSearchChange={setSearchTerm}
+              placeholder="Search withdrawals by influencer name or amount..."
+              showFilters={true}
+            />
+
+            <DataTable
+              headers={['Influencer', 'Amount', 'Bank Details', 'Status', 'Requested', 'Actions']}
+              data={withdrawalRequests.filter(req => 
+                req.influencerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                req.influencerEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                req.amount.toString().includes(searchTerm)
+              )}
+              loading={loading}
+              renderRow={(request) => (
+                <tr key={request.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
+                        <span className="text-white font-semibold text-sm">
+                          {getInitials(request.influencerName)}
+                        </span>
+                      </div>
+                      <div className="ml-4">
+                        <div className="text-sm font-medium text-gray-900">{request.influencerName}</div>
+                        <div className="text-sm text-gray-500">{request.influencerEmail}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {formatCurrency(request.amount)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <div>
+                      <div className="font-medium">{request.bankName}</div>
+                      <div className="text-gray-500">{request.bankAccount}</div>
+                      <div className="text-gray-500">{request.accountHolderName}</div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      request.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                      request.status === 'approved' ? 'bg-green-100 text-green-800' :
+                      request.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                      'bg-blue-100 text-blue-800'
+                    }`}>
+                      {request.status}
+                    </span>
+                    {request.rejectionReason && (
+                      <p className="text-xs text-red-600 mt-1">{request.rejectionReason}</p>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {formatDate(request.requestedAt)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <div className="flex items-center space-x-2">
+                      {request.status === 'pending' && (
+                        <>
+                          <button 
+                            onClick={() => approveWithdrawal(request.id)}
+                            className="text-green-600 hover:text-green-900"
+                            title="Approve"
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => {
+                              const reason = prompt('Rejection reason:');
+                              if (reason) rejectWithdrawal(request.id, reason);
+                            }}
+                            className="text-red-600 hover:text-red-900"
+                            title="Reject"
+                          >
+                            <XCircle className="w-4 h-4" />
+                          </button>
+                        </>
+                      )}
+                      {request.status === 'approved' && (
+                        <button 
+                          onClick={() => processWithdrawal(request.id)}
+                          className="text-blue-600 hover:text-blue-900"
+                          title="Process Payment"
+                        >
+                          <Banknote className="w-4 h-4" />
+                        </button>
+                      )}
+                      <button 
+                        onClick={() => {
+                          setSelectedWithdrawal(request);
+                          setShowWithdrawalModal(true);
+                        }}
+                        className="text-gray-600 hover:text-gray-900"
+                        title="View Details"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            />
+          </div>
+        )}
+
         {/* Create Promo Code Modal */}
         {showCreatePromo && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -878,6 +1167,155 @@ export default function AdminDashboard() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Withdrawal Details Modal */}
+        {showWithdrawalModal && selectedWithdrawal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full">
+              <div className="px-6 py-4 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-gray-900">Withdrawal Details</h3>
+                  <button
+                    onClick={() => setShowWithdrawalModal(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <XCircle className="w-6 h-6" />
+                  </button>
+                </div>
+              </div>
+              
+              <div className="p-6 space-y-6">
+                {/* Influencer Info */}
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h4 className="text-sm font-medium text-gray-900 mb-2">Influencer Information</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-600">Name</p>
+                      <p className="text-sm font-medium text-gray-900">{selectedWithdrawal.influencerName}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Email</p>
+                      <p className="text-sm font-medium text-gray-900">{selectedWithdrawal.influencerEmail}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Withdrawal Details */}
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h4 className="text-sm font-medium text-gray-900 mb-2">Withdrawal Details</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-600">Amount</p>
+                      <p className="text-lg font-semibold text-gray-900">{formatCurrency(selectedWithdrawal.amount)}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Status</p>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        selectedWithdrawal.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                        selectedWithdrawal.status === 'approved' ? 'bg-green-100 text-green-800' :
+                        selectedWithdrawal.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                        'bg-blue-100 text-blue-800'
+                      }`}>
+                        {selectedWithdrawal.status}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Requested</p>
+                      <p className="text-sm font-medium text-gray-900">{formatDate(selectedWithdrawal.requestedAt)}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Processed</p>
+                      <p className="text-sm font-medium text-gray-900">
+                        {selectedWithdrawal.processedAt ? formatDate(selectedWithdrawal.processedAt) : 'Not processed'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bank Details */}
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h4 className="text-sm font-medium text-gray-900 mb-2">Bank Information</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-600">Bank Name</p>
+                      <p className="text-sm font-medium text-gray-900">{selectedWithdrawal.bankName}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Account Number</p>
+                      <p className="text-sm font-medium text-gray-900">{selectedWithdrawal.bankAccount}</p>
+                    </div>
+                    <div className="col-span-2">
+                      <p className="text-sm text-gray-600">Account Holder</p>
+                      <p className="text-sm font-medium text-gray-900">{selectedWithdrawal.accountHolderName}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Stripe Transfer Info */}
+                {selectedWithdrawal.stripeTransferId && (
+                  <div className="bg-blue-50 p-4 rounded-lg">
+                    <h4 className="text-sm font-medium text-blue-900 mb-2">Stripe Transfer</h4>
+                    <p className="text-sm text-blue-800">Transfer ID: {selectedWithdrawal.stripeTransferId}</p>
+                  </div>
+                )}
+
+                {/* Rejection Reason */}
+                {selectedWithdrawal.rejectionReason && (
+                  <div className="bg-red-50 p-4 rounded-lg">
+                    <h4 className="text-sm font-medium text-red-900 mb-2">Rejection Reason</h4>
+                    <p className="text-sm text-red-800">{selectedWithdrawal.rejectionReason}</p>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex justify-end space-x-3 pt-4 border-t">
+                  <button
+                    onClick={() => setShowWithdrawalModal(false)}
+                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                  >
+                    Close
+                  </button>
+                  {selectedWithdrawal.status === 'pending' && (
+                    <>
+                      <button
+                        onClick={() => {
+                          approveWithdrawal(selectedWithdrawal.id);
+                          setShowWithdrawalModal(false);
+                        }}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                      >
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => {
+                          const reason = prompt('Rejection reason:');
+                          if (reason) {
+                            rejectWithdrawal(selectedWithdrawal.id, reason);
+                            setShowWithdrawalModal(false);
+                          }
+                        }}
+                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                      >
+                        Reject
+                      </button>
+                    </>
+                  )}
+                  {selectedWithdrawal.status === 'approved' && (
+                    <button
+                      onClick={() => {
+                        processWithdrawal(selectedWithdrawal.id);
+                        setShowWithdrawalModal(false);
+                      }}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    >
+                      Process Payment
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         )}
