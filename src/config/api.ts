@@ -1,13 +1,20 @@
 import { env } from './env';
 
-// API Configuration
+// API Configuration with validation
 export const API_BASE_URL = env.API_BASE_URL;
+
+// Validate API_BASE_URL
+if (!API_BASE_URL || API_BASE_URL === 'undefined') {
+  console.error('❌ API_BASE_URL is not properly configured!');
+  console.error('Please set NEXT_PUBLIC_API_BASE_URL environment variable');
+}
 
 // Debug logging
 if (typeof window !== 'undefined') {
   console.log('API Configuration Debug:', {
     API_BASE_URL,
-    env: env.API_BASE_URL
+    env: env.API_BASE_URL,
+    isValid: !!(API_BASE_URL && API_BASE_URL !== 'undefined')
   });
 }
 
