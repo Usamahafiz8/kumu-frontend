@@ -284,18 +284,22 @@ export default function AdminDashboard() {
         }),
         fetch(API_ENDPOINTS.ADMIN_WITHDRAWALS, {
           headers: { 'Authorization': `Bearer ${token}` }
-        })
+        }).catch(() => ({ json: () => Promise.resolve([]) }))
       ]);
 
       const usersData = await usersRes.json();
       const promoCodesData = await promoCodesRes.json();
       const withdrawalsData = await withdrawalsRes.json();
 
-      setUsers(usersData);
-      setPromoCodes(promoCodesData);
-      setWithdrawalRequests(withdrawalsData);
+      setUsers(Array.isArray(usersData) ? usersData : []);
+      setPromoCodes(Array.isArray(promoCodesData) ? promoCodesData : []);
+      setWithdrawalRequests(Array.isArray(withdrawalsData) ? withdrawalsData : []);
     } catch (err) {
       console.error('Error fetching data:', err);
+      // Set fallback empty arrays on error
+      setUsers([]);
+      setPromoCodes([]);
+      setWithdrawalRequests([]);
     } finally {
       setLoading(false);
     }
@@ -466,15 +470,16 @@ export default function AdminDashboard() {
   }
 
   // Calculate comprehensive stats
+  const safeWithdrawalRequests = Array.isArray(withdrawalRequests) ? withdrawalRequests : [];
   const stats: Stats = {
     totalUsers: users.length,
     totalPromoCodes: promoCodes.length,
     activePromoCodes: promoCodes.filter(code => code.status === 'active').length,
     totalPromoUses: promoCodes.reduce((sum, code) => sum + code.usedCount, 0),
     totalInfluencers: new Set(promoCodes.filter(code => code.influencerName).map(code => code.influencerName)).size,
-    pendingWithdrawals: withdrawalRequests.filter(req => req.status === 'pending').length,
-    totalWithdrawals: withdrawalRequests.length,
-    totalWithdrawalAmount: withdrawalRequests.reduce((sum, req) => sum + req.amount, 0),
+    pendingWithdrawals: safeWithdrawalRequests.filter(req => req.status === 'pending').length,
+    totalWithdrawals: safeWithdrawalRequests.length,
+    totalWithdrawalAmount: safeWithdrawalRequests.reduce((sum, req) => sum + req.amount, 0),
   };
 
   // Filter data based on search
@@ -920,7 +925,7 @@ export default function AdminDashboard() {
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">Approved</p>
                     <p className="text-2xl font-bold text-gray-900">
-                      {withdrawalRequests.filter(req => req.status === 'approved').length}
+                      {safeWithdrawalRequests.filter(req => req.status === 'approved').length}
                     </p>
                   </div>
                 </div>
@@ -960,7 +965,7 @@ export default function AdminDashboard() {
 
             <DataTable
               headers={['Influencer', 'Amount', 'Bank Details', 'Status', 'Requested', 'Actions']}
-              data={withdrawalRequests.filter(req => 
+              data={safeWithdrawalRequests.filter(req => 
                 req.influencerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 req.influencerEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 req.amount.toString().includes(searchTerm)

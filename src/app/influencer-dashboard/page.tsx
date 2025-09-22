@@ -144,7 +144,7 @@ export default function InfluencerDashboard() {
 
       if (response.ok) {
         const newRequest = await response.json();
-        setWithdrawalRequests([newRequest, ...withdrawalRequests]);
+        setWithdrawalRequests([newRequest, ...(Array.isArray(withdrawalRequests) ? withdrawalRequests : [])]);
         setShowWithdrawalModal(false);
         setWithdrawalForm({
           amount: '',
