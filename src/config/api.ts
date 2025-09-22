@@ -1,27 +1,24 @@
 import { env } from './env';
 
-// API Configuration with validation
-export const API_BASE_URL = "https://13.60.24.208";
+// DRY API Configuration
+const createEndpoint = (path: string) => `${env.API_BASE_URL}${path}`;
 
-
-
-// API Endpoints
 export const API_ENDPOINTS = {
-  // Admin endpoints
-  ADMIN_LOGIN: `${API_BASE_URL}/admin/login`,
-  ADMIN_USERS: `${API_BASE_URL}/admin/users`,
-  ADMIN_SUBSCRIPTIONS: `${API_BASE_URL}/admin/subscriptions`,
-  ADMIN_INFLUENCERS: `${API_BASE_URL}/admin/influencers`,
-  ADMIN_WITHDRAWALS: `${API_BASE_URL}/admin/withdrawals`,
+  // Admin
+  ADMIN_LOGIN: createEndpoint('/admin/login'),
+  ADMIN_USERS: createEndpoint('/admin/users'),
+  ADMIN_SUBSCRIPTIONS: createEndpoint('/admin/subscriptions'),
+  ADMIN_INFLUENCERS: createEndpoint('/admin/influencers'),
+  ADMIN_WITHDRAWALS: createEndpoint('/admin/withdrawals'),
   
   // Promo codes
-  PROMO_CODES: `${API_BASE_URL}/promo-codes`,
+  PROMO_CODES: createEndpoint('/promo-codes'),
   
-  // Influencer endpoints
-  INFLUENCER_LOGIN: `${API_BASE_URL}/influencer/login`,
-  INFLUENCER_REGISTER: `${API_BASE_URL}/influencer/register`,
-  INFLUENCER_PROFILE: `${API_BASE_URL}/influencer/profile`,
-  INFLUENCER_COMMISSIONS: `${API_BASE_URL}/influencer/commissions`,
-  INFLUENCER_WITHDRAWALS: `${API_BASE_URL}/influencer/withdrawals`,
-  INFLUENCER_PROMO_CODES: `${API_BASE_URL}/influencer/promo-codes`,
+  // Influencer
+  INFLUENCER_LOGIN: createEndpoint('/influencer/login'),
+  INFLUENCER_REGISTER: createEndpoint('/influencer/register'),
+  INFLUENCER_PROFILE: createEndpoint('/influencer/profile'),
+  INFLUENCER_COMMISSIONS: createEndpoint('/influencer/commissions'),
+  INFLUENCER_WITHDRAWALS: createEndpoint('/influencer/withdrawals'),
+  INFLUENCER_PROMO_CODES: createEndpoint('/influencer/promo-codes'),
 } as const;
